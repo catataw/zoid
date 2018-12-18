@@ -1,7 +1,7 @@
 /* @flow */
 
 import { onCloseWindow } from 'cross-domain-utils/src';
-import { once } from 'belter/src';
+import { once, getElement } from 'belter/src';
 
 import { testComponent } from '../component';
 import { onWindowOpen } from '../common';
@@ -10,12 +10,12 @@ describe('zoid render to parent', () => {
 
     it('should render a component to the parent as an iframe', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
             foo: done,
 
             run: `
-                zoid.getByTag('test-component2').renderIframeTo(window.parent, {
-                    onEnter: function() {
+                zoid.getByTag('test-component2').renderTo(window.parent, {
+                    onRendered: function() {
                         return window.xprops.foo();
                     }
                 }, 'body');
@@ -25,29 +25,29 @@ describe('zoid render to parent', () => {
 
     it('should render a component to the parent as a popup', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
             foo: done,
 
             run: `
-                zoid.getByTag('test-component2').renderPopupTo(window.parent, {
-                    onEnter: function() {
+                zoid.getByTag('test-component2').renderTo(window.parent, {
+                    onRendered: function() {
                         return window.xprops.foo();
                     }
-                });
+                }, 'body', zoid.CONTEXT.POPUP);
             `
         }, document.body);
     });
 
     it('should render a component to the parent as an iframe', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
             foo() {
                 done();
             },
 
             run: `
-                zoid.getByTag('test-component2').renderIframeTo(window.parent, {
-                    onEnter: function() {
+                zoid.getByTag('test-component2').renderTo(window.parent, {
+                    onRendered: function() {
                         return window.xprops.foo();
                     }
                 }, 'body');
@@ -57,11 +57,11 @@ describe('zoid render to parent', () => {
 
     it('should render a component to the parent as an iframe and call a prop', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
             foo: done,
 
             run: `
-                zoid.getByTag('test-component2').renderIframeTo(window.parent, {
+                zoid.getByTag('test-component2').renderTo(window.parent, {
                     foo: function() {
                         window.xprops.foo();
                     },
@@ -75,11 +75,11 @@ describe('zoid render to parent', () => {
 
     it('should render a component to the parent as an iframe and call a prop', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
             foo: done,
 
             run: `
-                zoid.getByTag('test-component2').renderIframeTo(window.parent, {
+                zoid.getByTag('test-component2').renderTo(window.parent, {
                     foo: function() {
                         window.xprops.foo();
                     },
@@ -94,30 +94,30 @@ describe('zoid render to parent', () => {
 
     it('should render a component to the parent as a popup and call a prop', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
             foo: done,
 
             run: `
-                zoid.getByTag('test-component2').renderPopupTo(window.parent, {
+                zoid.getByTag('test-component2').renderTo(window.parent, {
                     foo: function() {
                         window.xprops.foo();
                     },
 
                     run: 'window.xprops.foo();'
 
-                });
+                }, 'body', zoid.CONTEXT.POPUP);
             `
         }, document.body);
     });
 
     it('should render a component to the parent as an iframe and close on enter', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
             onClose: () => done(),
 
             run: `
-                zoid.getByTag('test-component2').renderIframeTo(window.parent, {
-                    onEnter: function() {
+                zoid.getByTag('test-component2').renderTo(window.parent, {
+                    onRendered: function() {
                         this.close();
                     },
 
@@ -133,7 +133,7 @@ describe('zoid render to parent', () => {
 
         let win;
 
-        testComponent.renderIframe({
+        testComponent.render({
             foo: () => {
                 onWindowOpen().then(openedWin => {
                     win = openedWin;
@@ -141,24 +141,18 @@ describe('zoid render to parent', () => {
             },
 
             childEntered: () => {
-                let closeButton = document.querySelector('.zoid-tag-test-component2 .zoid-close');
-
-                if (!closeButton) {
-                    return done(new Error(`Expected close button to be present`));
-                }
-
                 onCloseWindow(win, () => {
                     done();
                 }, 50);
 
-                closeButton.click();
+                getElement('#test-component2-test-close').click();
             },
 
             run: `
                 window.xprops.foo().then(function() {
-                    zoid.getByTag('test-component2').renderIframeTo(window.parent, {
+                    zoid.getByTag('test-component2').renderTo(window.parent, {
 
-                        onEnter: function() {
+                        onRendered: function() {
                             return window.xprops.childEntered();
                         }
     
@@ -170,16 +164,10 @@ describe('zoid render to parent', () => {
 
     it('should close a zoid renderToParent popup on click of the overlay close button', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
 
             childEntered: () => {
-                let closeButton = document.querySelector('.zoid-tag-test-component2 .zoid-close');
-
-                if (!closeButton) {
-                    return done(new Error(`Expected close button to be present`));
-                }
-
-                closeButton.click();
+                getElement('#test-component2-test-close').click();
             },
 
             foo: () => done(),
@@ -191,9 +179,9 @@ describe('zoid render to parent', () => {
                     win = openedWindow;
                 });
 
-                zoid.getByTag('test-component2').renderPopupTo(window.parent, {
+                zoid.getByTag('test-component2').renderTo(window.parent, {
 
-                    onEnter: function() {
+                    onRendered: function() {
 
                         var winClose = win.close;
                         win.close = function() {
@@ -204,7 +192,7 @@ describe('zoid render to parent', () => {
                         return window.xprops.childEntered();
                     }
 
-                });
+                }, 'body', zoid.CONTEXT.POPUP);
             `
         }, document.body);
     });
@@ -212,16 +200,10 @@ describe('zoid render to parent', () => {
     it('should focus a zoid renderToParent popup on click of the overlay', done => {
         done = once(done);
 
-        testComponent.renderIframe({
+        testComponent.render({
 
             childEntered: () => {
-                let overlayElement = document.querySelector('.zoid-tag-test-component2');
-
-                if (!overlayElement) {
-                    return done(new Error(`Expected overlay element to be present`));
-                }
-
-                overlayElement.click();
+                getElement('#test-component2-test-focus').click();
             },
 
             foo: () => done(),
@@ -233,9 +215,9 @@ describe('zoid render to parent', () => {
                     win = openedWindow;
                 });
 
-                zoid.getByTag('test-component2').renderPopupTo(window.parent, {
+                zoid.getByTag('test-component2').renderTo(window.parent, {
 
-                    onEnter: function() {
+                    onRendered: function() {
 
                         win.focus = function() {
                             window.xprops.foo();
@@ -244,7 +226,7 @@ describe('zoid render to parent', () => {
                         return window.xprops.childEntered();
                     }
 
-                });
+                }, 'body', zoid.CONTEXT.POPUP);
             `
         }, document.body);
     });

@@ -2,7 +2,7 @@
 
 import { dasherizeToCamel, replaceObject } from 'belter/src';
 
-import type { Component, ComponentDriverType } from '../component/component';
+import type { Component, ComponentDriverType } from '../component';
 import { CONTEXT } from '../constants';
 
 type AngularModule = {
@@ -82,11 +82,10 @@ export let angular : ComponentDriverType<*, Angular> = {
                         return scopeProps;
                     };
 
-                    let parent = component.init(getProps(), null, $element[0]);
-                    parent.render(CONTEXT.IFRAME, $element[0]);
+                    let renderPromise = component.render(getProps(), $element[0], CONTEXT.IFRAME);
 
                     $scope.$watch(() => {
-                        parent.updateProps(getProps());
+                        renderPromise.then(parent => parent.updateProps(getProps()));
                     });
                 } ]
             };

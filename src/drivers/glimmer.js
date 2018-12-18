@@ -1,6 +1,6 @@
 /* @flow */
 
-import type { Component, ComponentDriverType } from '../component/component';
+import type { Component, ComponentDriverType } from '../component';
 
 declare class GlimmerComponentType {
     element : HTMLElement,

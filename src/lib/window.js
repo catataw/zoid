@@ -2,10 +2,10 @@
 
 import { memoize, stringifyError, base64encode, base64decode } from 'belter/src';
 
-import { normalizeString } from '../lib';
 import { ZOID } from '../constants';
+import type { ChildPayload } from '../parent';
 
-import type { ChildPayload } from './parent';
+import { normalizeString } from './util';
 
 export function buildChildWindowName(name : string, childPayload : ChildPayload) : string {
     let normalizedName = normalizeString(name);

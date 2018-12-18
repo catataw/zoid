@@ -5,26 +5,23 @@ import { once, memoize, noop, promisify } from 'belter/src';
 import { isWindow, type CrossDomainWindowType } from 'cross-domain-utils/src';
 import { ProxyWindow } from 'post-robot/src/serialize/window';
 
-import { type DimensionsType } from '../../types';
-import { PROP_SERIALIZATION } from '../../constants';
-
-import type { Component } from './index';
+import { PROP_SERIALIZATION } from '../constants';
 
 type PropDefinitionType<T, P, S : string> = {|
     type : S,
     alias? : string,
-    value? : () => ?T,
+    value? : ({ props : P, state : Object }) => ?T,
     required? : boolean,
-    queryParam? : boolean | string | (T) => (string | ZalgoPromise<string>),
-    queryValue? : (T) => (ZalgoPromise<mixed> | mixed),
+    queryParam? : boolean | string | ({ value : T }) => (string | ZalgoPromise<string>),
+    queryValue? : ({ value : T }) => (ZalgoPromise<mixed> | mixed),
     sendToChild? : boolean,
     allowDelegate? : boolean,
-    validate? : (T, PropsType & P) => void,
-    decorate? : (T, PropsType & P) => (T | void),
-    def? : (P, Component<P>) => ? T,
+    validate? : ({ value : T, props : PropsType & P }) => void,
+    decorate? : ({ value : T, props : BuiltInPropsType & P, state : Object }) => T,
+    def? : ({ props : P, state : Object }) => ?T,
     sameDomain? : boolean,
     serialization? : $Values<typeof PROP_SERIALIZATION>,
-    childDecorate? : (T) => ?T
+    childDecorate? : ({ value : T }) => ?T
 |};
 
 export type BooleanPropDefinitionType<T : boolean, P> = PropDefinitionType<T, P, 'boolean'>;
@@ -42,51 +39,43 @@ export type UserPropsDefinitionType<P> = {
 
 export type EventHandlerType<T> = (T) => void | ZalgoPromise<void>;
 
-type envPropType = string;
-type timeoutPropType = number;
-type dimensionsPropType = DimensionsType;
-type windowPropType = ProxyWindow;
+export type timeoutPropType = number;
+export type windowPropType = CrossDomainWindowType | ProxyWindow;
 
-type onDisplayPropType = EventHandlerType<void>;
-type onEnterPropType = EventHandlerType<void>;
-type onRenderPropType = EventHandlerType<void>;
-type onClosePropType = EventHandlerType<string>;
-type onErrorPropType = EventHandlerType<mixed>;
+export type onDisplayPropType = EventHandlerType<void>;
+export type onRenderedPropType = EventHandlerType<void>;
+export type onRenderPropType = EventHandlerType<void>;
+export type onClosePropType = EventHandlerType<string>;
+export type onErrorPropType = EventHandlerType<mixed>;
 
 export type BuiltInPropsType = {
-    env : envPropType,
     timeout? : timeoutPropType,
-    dimensions? : dimensionsPropType,
-    window? : windowPropType,
+    window? : ?windowPropType,
 
     onDisplay : onDisplayPropType,
-    onEnter : onEnterPropType,
+    onRendered : onRenderedPropType,
     onRender : onRenderPropType,
     onClose : onClosePropType,
-    onError? : onErrorPropType
+    onError : onErrorPropType
 };
 
 export type PropsType = {
-    env? : envPropType,
     timeout? : timeoutPropType,
-    dimensions? : dimensionsPropType,
     window? : windowPropType,
 
     onDisplay? : onDisplayPropType,
-    onEnter? : onEnterPropType,
+    onRendered? : onRenderedPropType,
     onRender? : onRenderPropType,
     onClose? : onClosePropType,
     onError? : onErrorPropType
 };
 
 export type BuiltInPropsDefinitionType<P> = {
-    env : StringPropDefinitionType<envPropType, P>,
     timeout : NumberPropDefinitionType<timeoutPropType, P>,
-    dimensions : ObjectPropDefinitionType<dimensionsPropType, P>,
     window : ObjectPropDefinitionType<windowPropType, P>,
 
     onDisplay : FunctionPropDefinitionType<onDisplayPropType, P>,
-    onEnter : FunctionPropDefinitionType<onEnterPropType, P>,
+    onRendered : FunctionPropDefinitionType<onRenderedPropType, P>,
     onRender : FunctionPropDefinitionType<onRenderPropType, P>,
     onClose : FunctionPropDefinitionType<onClosePropType, P>,
     onError : FunctionPropDefinitionType<onErrorPropType, P>
@@ -101,38 +90,19 @@ export type BuiltInPropsDefinitionType<P> = {
 
 export function getInternalProps<P>() : BuiltInPropsDefinitionType<P> {
     return {
-
-        // The desired env in which the component is being rendered. Used to determine the correct url
-
-        env: {
-            type:       'string',
-            queryParam: true,
-            required:   false,
-            def(props, component) : ?string {
-                return component.defaultEnv;
-            }
-        },
-
         window: {
             type:          'object',
             sendToChild:   false,
             required:      false,
             allowDelegate: true,
-            validate(val : CrossDomainWindowType | ProxyWindow) {
-                if (!isWindow(val) && !ProxyWindow.isProxyWindow(val)) {
+            validate({ value } : { value : CrossDomainWindowType | ProxyWindow }) {
+                if (!isWindow(value) && !ProxyWindow.isProxyWindow(value)) {
                     throw new Error(`Expected Window or ProxyWindow`);
                 }
             },
-            decorate(val : CrossDomainWindowType | ProxyWindow | void) : ProxyWindow | void {
-                if (val) {
-                    return ProxyWindow.toProxyWindow(val);
-                }
+            decorate({ value } : { value : CrossDomainWindowType | ProxyWindow }) : ProxyWindow {
+                return ProxyWindow.toProxyWindow(value);
             }
-        },
-
-        dimensions: {
-            type:     'object',
-            required: false
         },
 
         timeout: {
@@ -147,26 +117,22 @@ export function getInternalProps<P>() : BuiltInPropsDefinitionType<P> {
             sendToChild:   false,
             allowDelegate: true,
 
-            def() : Function {
-                return noop;
-            },
+            def: () => noop,
 
-            decorate(onDisplay : Function) : Function {
-                return memoize(promisify(onDisplay));
+            decorate({ value } : { value : Function }) : Function {
+                return memoize(promisify(value));
             }
         },
 
-        onEnter: {
+        onRendered: {
             type:        'function',
             required:    false,
             sendToChild: false,
 
-            def() : Function {
-                return noop;
-            },
+            def: () => noop,
 
-            decorate(onEnter : Function) : Function {
-                return promisify(onEnter);
+            decorate({ value } : { value : Function }) : Function {
+                return promisify(value);
             }
         },
 
@@ -181,8 +147,8 @@ export function getInternalProps<P>() : BuiltInPropsDefinitionType<P> {
                 return noop;
             },
 
-            decorate(onRender : Function) : Function {
-                return promisify(onRender);
+            decorate({ value } : { value : Function }) : Function {
+                return promisify(value);
             }
         },
 
@@ -194,12 +160,10 @@ export function getInternalProps<P>() : BuiltInPropsDefinitionType<P> {
             sendToChild:   false,
             allowDelegate: true,
 
-            def() : Function {
-                return noop;
-            },
+            def: () => noop,
 
-            decorate(onClose : Function) : Function {
-                return once(promisify(onClose));
+            decorate({ value } : { value : Function }) : Function {
+                return once(promisify(value));
             }
         },
 
@@ -217,8 +181,8 @@ export function getInternalProps<P>() : BuiltInPropsDefinitionType<P> {
                 };
             },
 
-            decorate(onError : Function) : Function {
-                return once(promisify(onError));
+            decorate({ value } : { value : Function }) : Function {
+                return once(promisify(value));
             }
         }
     };

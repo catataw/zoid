@@ -5,9 +5,9 @@ import { cleanUpWindow, ProxyWindow } from 'post-robot/src';
 import { type CrossDomainWindowType, type SameDomainWindowType, assertSameDomain, isSameDomain } from 'cross-domain-utils/src';
 import { iframe, popup, toCSS, showElement, hideElement,
     destroyElement, normalizeDimension, watchElementForClose,
-    awaitFrameWindow, awaitFrameLoad, addClass, removeClass, uniqueID } from 'belter/src';
+    awaitFrameWindow, addClass, removeClass, uniqueID } from 'belter/src';
 
-import { CONTEXT, DELEGATE, CLOSE_REASONS, CLASS_NAMES } from '../../constants';
+import { CONTEXT, CLOSE_REASONS, CLASS, DEFAULT_DIMENSIONS } from '../constants';
 
 
 export type ContextDriverType = {
@@ -16,12 +16,12 @@ export type ContextDriverType = {
     callChildToClose : boolean,
 
     open : () => ZalgoPromise<ProxyWindow>,
-    resize : ({ width? : ?number, height? : ?number }) => void,
+    resize : ({ width? : ?(number | string), height? : ?(number | string) }) => void,
     show : () => void,
     hide : () => void,
 
     delegateOverrides : {
-        [string] : string | Function
+        [string] : boolean
     },
 
     openPrerender : (CrossDomainWindowType) => ZalgoPromise<?SameDomainWindowType>,
@@ -64,8 +64,8 @@ RENDER_DRIVERS[CONTEXT.IFRAME] = {
                 ...attributes
             },
             class: [
-                CLASS_NAMES.COMPONENT_FRAME,
-                CLASS_NAMES.INVISIBLE
+                CLASS.COMPONENT_FRAME,
+                CLASS.INVISIBLE
             ]
         }, this.element);
 
@@ -84,7 +84,7 @@ RENDER_DRIVERS[CONTEXT.IFRAME] = {
             let iframeWatcher = watchElementForClose(frame, detectClose);
             let elementWatcher = watchElementForClose(this.element, detectClose);
 
-            this.clean.register('destroyWindow', () => {
+            this.clean.register(() => {
                 iframeWatcher.cancel();
                 elementWatcher.cancel();
                 cleanUpWindow(win);
@@ -105,17 +105,16 @@ RENDER_DRIVERS[CONTEXT.IFRAME] = {
                 ...attributes
             },
             class: [
-                CLASS_NAMES.PRERENDER_FRAME,
-                CLASS_NAMES.VISIBLE
+                CLASS.PRERENDER_FRAME,
+                CLASS.VISIBLE
             ]
         }, this.element);
 
         this.clean.set('prerenderIframe', prerenderIframe);
 
-        return awaitFrameLoad(prerenderIframe).then(() => {
-            let prerenderFrameWindow = prerenderIframe.contentWindow;
+        return awaitFrameWindow(prerenderIframe).then(prerenderFrameWindow => {
 
-            this.clean.register('destroyPrerender', () => {
+            this.clean.register(() => {
                 destroyElement(prerenderIframe);
             });
 
@@ -125,48 +124,47 @@ RENDER_DRIVERS[CONTEXT.IFRAME] = {
 
     switchPrerender() {
 
-        addClass(this.prerenderIframe, CLASS_NAMES.INVISIBLE);
-        removeClass(this.prerenderIframe, CLASS_NAMES.VISIBLE);
-
-        addClass(this.iframe, CLASS_NAMES.VISIBLE);
-        removeClass(this.iframe, CLASS_NAMES.INVISIBLE);
+        addClass(this.prerenderIframe, CLASS.INVISIBLE);
+        removeClass(this.prerenderIframe, CLASS.VISIBLE);
+        addClass(this.iframe, CLASS.VISIBLE);
+        removeClass(this.iframe, CLASS.INVISIBLE);
 
         setTimeout(() => {
             if (this.prerenderIframe) {
                 destroyElement(this.prerenderIframe);
             }
-        }, 1000);
+        }, 1);
     },
 
     delegateOverrides: {
-        openContainer:           DELEGATE.CALL_DELEGATE,
-        destroyComponent:        DELEGATE.CALL_DELEGATE,
-        destroyContainer:        DELEGATE.CALL_DELEGATE,
-        cancelContainerEvents:   DELEGATE.CALL_DELEGATE,
-        prerender:               DELEGATE.CALL_DELEGATE,
-        elementReady:            DELEGATE.CALL_DELEGATE,
-        showContainer:           DELEGATE.CALL_DELEGATE,
-        showComponent:           DELEGATE.CALL_DELEGATE,
-        hideContainer:           DELEGATE.CALL_DELEGATE,
-        hideComponent:           DELEGATE.CALL_DELEGATE,
-        hide:                    DELEGATE.CALL_DELEGATE,
-        show:                    DELEGATE.CALL_DELEGATE,
-        resize:                  DELEGATE.CALL_DELEGATE,
-        loadUrl:                 DELEGATE.CALL_DELEGATE,
-        openPrerender:           DELEGATE.CALL_DELEGATE,
-        switchPrerender:         DELEGATE.CALL_DELEGATE,
-        setWindowName:           DELEGATE.CALL_DELEGATE,
-        open:                    DELEGATE.CALL_DELEGATE
+        openContainer:           true,
+        destroyComponent:        true,
+        destroyContainer:        true,
+        cancelContainerEvents:   true,
+        prerender:               true,
+        elementReady:            true,
+        showContainer:           true,
+        showComponent:           true,
+        hideContainer:           true,
+        hideComponent:           true,
+        hide:                    true,
+        show:                    true,
+        resize:                  true,
+        loadUrl:                 true,
+        openPrerender:           true,
+        switchPrerender:         true,
+        setWindowName:           true,
+        open:                    true
     },
 
-    resize({ width, height } : { width? : ?number, height? : ?number }) {
+    resize({ width, height } : { width? : ?(number | string), height? : ?(number | string) }) {
 
-        if (width) {
+        if (typeof width === 'number') {
             this.container.style.width = toCSS(width);
             this.element.style.width   = toCSS(width);
         }
 
-        if (height) {
+        if (typeof height === 'number') {
             this.container.style.height = toCSS(height);
             this.element.style.height = toCSS(height);
         }
@@ -192,7 +190,11 @@ if (__ZOID__.__POPUP_SUPPORT__) {
 
         open() : ZalgoPromise<ProxyWindow> {
             return ZalgoPromise.try(() => {
-                let { width, height } = this.component.dimensions;
+
+                let {
+                    width = DEFAULT_DIMENSIONS.WIDTH,
+                    height = DEFAULT_DIMENSIONS.HEIGHT
+                } = this.component.dimensions || {};
 
                 width = normalizeDimension(width, window.outerWidth);
                 height = normalizeDimension(height, window.outerWidth);
@@ -200,7 +202,7 @@ if (__ZOID__.__POPUP_SUPPORT__) {
                 let attributes = this.component.attributes.popup || {};
                 let win = popup('', { width, height, ...attributes });
 
-                this.clean.register('destroyWindow', () => {
+                this.clean.register(() => {
                     win.close();
                     cleanUpWindow(win);
                 });
@@ -231,20 +233,20 @@ if (__ZOID__.__POPUP_SUPPORT__) {
 
         delegateOverrides: {
 
-            openContainer:          DELEGATE.CALL_DELEGATE,
-            destroyContainer:       DELEGATE.CALL_DELEGATE,
+            openContainer:          true,
+            destroyContainer:       true,
 
-            elementReady:           DELEGATE.CALL_DELEGATE,
+            elementReady:           true,
 
-            showContainer:          DELEGATE.CALL_DELEGATE,
-            showComponent:          DELEGATE.CALL_DELEGATE,
-            hideContainer:          DELEGATE.CALL_DELEGATE,
-            hideComponent:          DELEGATE.CALL_DELEGATE,
+            showContainer:          true,
+            showComponent:          true,
+            hideContainer:          true,
+            hideComponent:          true,
 
-            hide:                   DELEGATE.CALL_DELEGATE,
-            show:                   DELEGATE.CALL_DELEGATE,
+            hide:                   true,
+            show:                   true,
 
-            cancelContainerEvents:  DELEGATE.CALL_DELEGATE
+            cancelContainerEvents:  true
         }
     };
 }

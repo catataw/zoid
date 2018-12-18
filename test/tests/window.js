@@ -21,7 +21,7 @@ describe('zoid window prop cases', () => {
             let win = frame.contentWindow;
             let uid = uniqueID();
     
-            return testComponent.renderIframe({
+            return testComponent.render({
                 window: win,
     
                 passUIDGetter: expect(`passUIDGetter`, getUID => {
@@ -51,7 +51,7 @@ describe('zoid window prop cases', () => {
             let win = window.open('', '');
             let uid = uniqueID();
     
-            return testComponent.renderIframe({
+            return testComponent.render({
                 window: win,
     
                 passUIDGetter: expect(`passUIDGetter`, getUID => {
@@ -88,7 +88,7 @@ describe('zoid window prop cases', () => {
             let win = frame.contentWindow;
             let uid = uniqueID();
 
-            return testComponent.renderIframe({
+            return testComponent.render({
                 myCustomWindow: win,
 
                 passUIDGetter: expect(`passUIDGetter`, getUID => {
@@ -126,7 +126,7 @@ describe('zoid window prop cases', () => {
             let win = window.open('', '');
             let uid = uniqueID();
 
-            return testComponent.renderIframe({
+            return testComponent.render({
                 myCustomWindow: win,
 
                 passUIDGetter: expect(`passUIDGetter`, getUID => {

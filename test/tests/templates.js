@@ -1,10 +1,11 @@
 /* @flow */
 
 import { onCloseWindow } from 'cross-domain-utils/src';
-import { once } from 'belter/src';
+import { once, getElement } from 'belter/src';
 
 import { testComponent } from '../component';
 import { onWindowOpen } from '../common';
+import { CONTEXT } from '../../src';
 
 describe('zoid templates and styles', () => {
 
@@ -17,16 +18,16 @@ describe('zoid templates and styles', () => {
             win = openedWindow;
         });
 
-        testComponent.renderPopup({
+        testComponent.render({
 
-            onEnter() {
+            onRendered() {
                 win.focus = () => {
                     done();
                 };
 
-                this.container.click();
+                getElement('#test-component-test-focus').click();
             }
-        });
+        }, 'body', CONTEXT.POPUP);
     });
 
     it('should close a zoid popup on click of the overlay close button', done => {
@@ -36,16 +37,16 @@ describe('zoid templates and styles', () => {
             win = openedWindow;
         });
 
-        testComponent.renderPopup({
+        testComponent.render({
 
-            onEnter() {
+            onRendered() {
                 onCloseWindow(win, () => {
                     done();
                 }, 50);
 
-                this.container.querySelector('.zoid-close').click();
+                getElement('#test-component-test-close').click();
             }
-        });
+        }, 'body', CONTEXT.POPUP);
     });
 
 
@@ -56,14 +57,14 @@ describe('zoid templates and styles', () => {
             win = openedWindow;
         });
 
-        testComponent.renderIframe({
+        testComponent.render({
 
-            onEnter() {
+            onRendered() {
                 onCloseWindow(win, () => {
                     done();
                 }, 50);
 
-                this.container.querySelector('.zoid-close').click();
+                getElement('#test-component-test-close').click();
             }
         }, document.body);
     });

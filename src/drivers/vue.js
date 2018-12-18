@@ -2,7 +2,7 @@
 
 import { extend } from 'belter/src';
 
-import type { Component, ComponentDriverType } from '../component/component';
+import type { Component, ComponentDriverType } from '../component';
 import { CONTEXT } from '../constants';
 
 type VueComponent = {
@@ -31,15 +31,13 @@ export let vue : ComponentDriverType<*, void> = {
                 let el = this.$el;
 
                 // $FlowFixMe
-                this.parent = component.init(extend({}, this.$attrs), null, el);
-
-                this.parent.render(CONTEXT.IFRAME, el);
+                this.renderPromise = component.render(extend({}, this.$attrs), el, CONTEXT.IFRAME);
             },
 
             beforeUpdate() {
                 
-                if (this.parent && this.$attrs) {
-                    this.parent.updateProps(extend({}, this.$attrs));
+                if (this.renderPromise && this.$attrs) {
+                    this.renderPromise.then(parent => parent.updateProps(extend({}, this.$attrs)));
                 }
             }
         };

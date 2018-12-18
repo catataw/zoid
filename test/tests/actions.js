@@ -5,6 +5,7 @@ import { once } from 'belter/src';
 
 import { testComponent } from '../component';
 import { onWindowOpen } from '../common';
+import { CONTEXT } from '../../src';
 
 describe('zoid actions', () => {
 
@@ -24,7 +25,7 @@ describe('zoid actions', () => {
             win = openedWindow;
         });
 
-        testComponent.renderIframe({}, document.body).then(() => {
+        testComponent.render({}, document.body, CONTEXT.IFRAME).then(() => {
             onCloseWindow(win, () => {
                 done();
             }, 50);
@@ -48,7 +49,7 @@ describe('zoid actions', () => {
             win = openedWindow;
         });
 
-        testComponent.renderPopup({}).then(() => {
+        testComponent.render({}, 'body', CONTEXT.POPUP).then(() => {
             onCloseWindow(win, () => {
                 done();
             }, 50);
@@ -73,7 +74,7 @@ describe('zoid actions', () => {
             win = openedWindow;
         });
 
-        testComponent.renderPopup({}).then(() => {
+        testComponent.render({}, 'body', CONTEXT.POPUP).then(() => {
             win.focus = done;
             focus();
         });

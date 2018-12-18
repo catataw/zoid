@@ -144,7 +144,11 @@ describe('zoid validation errors', () => {
                     onSomething: {
                         type:     'function',
                         required: true,
-                        def() { /* pass */ }
+                        def:      () => {
+                            return () => {
+                                // pass
+                            };
+                        }
                     }
                 }
             });
@@ -239,62 +243,6 @@ describe('zoid validation errors', () => {
             defaultContext: 'iframe'
         });
 
-        expectError('Undefined url', () => {
-            zoid.create({
-                tag:        'my-component',
-                dimensions: {
-                    height: '50px',
-                    width:  '200px'
-                },
-                url: {
-                    // $FlowFixMe
-                    foo: undefined
-                }
-            });
-        });
-
-        expectError('No default env passed', () => {
-            zoid.create({
-                tag:        'my-component',
-                dimensions: {
-                    height: '50px',
-                    width:  '200px'
-                },
-                url: {
-                    foo: 'http://www.zombo.com'
-                }
-            });
-        });
-
-        expectError('Invalid default env passed', () => {
-            // $FlowFixMe
-            zoid.create({
-                tag:        'my-component',
-                dimensions: {
-                    height: '50px',
-                    width:  '200px'
-                },
-                envUrls: {
-                    foo: 'http://www.zombo.com'
-                },
-                defaultEnv: 1234
-            });
-        });
-
-        expectError('Default env passed with empty urls', () => {
-            zoid.create({
-                tag:        'my-component',
-                dimensions: {
-                    height: '50px',
-                    width:  '200px'
-                },
-                url: {
-
-                },
-                defaultEnv: 'moo'
-            });
-        });
-
         expectError('Invalid url passed', () => {
             // $FlowFixMe
             zoid.create({
@@ -311,19 +259,19 @@ describe('zoid validation errors', () => {
     it('should throw validation errors when a component is inited without the correct options', () => {
 
         expectError('String passed for function prop', () => {
-            testComponent.init({
+            testComponent.render({
                 functionProp: 'foobar'
             });
         });
 
         expectError('Object passed for string prop', () => {
-            testComponent.init({
+            testComponent.render({
                 stringProp() { /* pass */ }
             });
         });
 
         expectError('Object passed fro number prop', () => {
-            testComponent.init({
+            testComponent.render({
                 numberProp() { /* pass */ }
             });
         });
@@ -332,7 +280,7 @@ describe('zoid validation errors', () => {
             let obj = {};
             obj.obj = obj;
 
-            testComponent.init({
+            testComponent.render({
                 objectProp: obj
             });
         });
@@ -340,7 +288,7 @@ describe('zoid validation errors', () => {
         /*
 
         expectError('Invalid prop passed', () => {
-            testComponent.init({
+            testComponent.render({
                 invalidProp: 'foobar'
             });
         });
@@ -349,7 +297,7 @@ describe('zoid validation errors', () => {
 
         expectError('No props passed', () => {
             // $FlowFixMe
-            testComponent5.init();
+            testComponent5.render();
         });
     });
 });

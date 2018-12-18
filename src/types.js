@@ -17,5 +17,3 @@ export type CancelableType = {
 };
 
 export type StringMatcherType = string | Array<string>;
-
-export type EnvString = string | { [string] : string };

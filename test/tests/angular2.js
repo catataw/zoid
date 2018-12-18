@@ -7,14 +7,19 @@ import { angular2 } from './../../src/drivers/angular2';
 const sinon = window.sinon;
 
 let initializedZoid = {
-    render:      sinon.spy(),
     updateProps: sinon.spy()
 };
 
 let unInitializedZoid = {
-    log:  () => { /* pass */ },
-    tag:  'my-log-in',
-    init: sinon.spy(() => initializedZoid)
+    log:    () => { /* pass */ },
+    tag:    'my-log-in',
+    render: sinon.spy(() => {
+        return {
+            then: (handler) => {
+                handler(initializedZoid);
+            }
+        };
+    })
 };
 
 const componentClassSpy = sinon.spy(() => 'ng-component value');
@@ -148,13 +153,8 @@ describe('angular 2 driver', () => {
                 component = undefined;
             });
 
-            it('initilize zoid using provided props', () => {
-                // $FlowFixMe
-                sinon.assert.calledWith(unInitializedZoid.init, component.props, null, 'nativeElement value');
-            });
-
             it('render zoid into target element', () => {
-                sinon.assert.calledWith(initializedZoid.render, 'iframe', 'nativeElement value');
+                sinon.assert.calledWith(unInitializedZoid.render, 'iframe', 'nativeElement value');
             });
 
             it('saves a reference to parent zoid', () => {
@@ -210,7 +210,7 @@ describe('angular 2 driver', () => {
             // $FlowFixMe
             componentClass.ngOnInit
                 .bind(component)();
-            const propsPassedToZoid = unInitializedZoid.init.lastCall.args[0];
+            const propsPassedToZoid = unInitializedZoid.render.lastCall.args[0];
             propsPassedToZoid.onLogin('c@b.com');
             // $FlowFixMe
             assert.isTrue(component.email === 'c@b.com');

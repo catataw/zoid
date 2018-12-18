@@ -2,7 +2,7 @@
 
 import { extend } from 'belter/src';
 
-import type { Component, ComponentDriverType } from '../component/component';
+import type { Component, ComponentDriverType } from '../component';
 import { CONTEXT } from '../constants';
 
 declare class ReactClassType {
@@ -51,17 +51,15 @@ export let react : ComponentDriverType<*, ReactLibraryType> = {
 
                     let el = ReactDOM.findDOMNode(this);
 
-                    let parent = component.init(extend({}, this.props), null, el);
+                    let renderPromise = component.render(extend({}, this.props), el, CONTEXT.IFRAME);
 
-                    this.setState({ parent });
-
-                    parent.render(CONTEXT.IFRAME, el);
+                    this.setState({ renderPromise });
                 },
 
                 componentDidUpdate() {
 
-                    if (this.state && this.state.parent) {
-                        this.state.parent.updateProps(extend({}, this.props));
+                    if (this.state && this.state.renderPromise) {
+                        this.state.renderPromise.then(parent => parent.updateProps(extend({}, this.props)));
                     }
                 }
             });
@@ -77,17 +75,14 @@ export let react : ComponentDriverType<*, ReactLibraryType> = {
 
                     let el = ReactDOM.findDOMNode(this);
 
-                    let parent = component.init(extend({}, this.props), null, el);
-
-                    this.setState({ parent });
-
-                    parent.render(CONTEXT.IFRAME, el);
+                    let renderPromise = component.render(extend({}, this.props), el, CONTEXT.IFRAME);
+                    this.setState({ renderPromise });
                 }
 
                 componentDidUpdate() {
 
-                    if (this.state && this.state.parent) {
-                        this.state.parent.updateProps(extend({}, this.props));
+                    if (this.state && this.state.renderPromise) {
+                        this.state.renderPromise.then(parent => parent.updateProps(extend({}, this.props)));
                     }
                 }
             };

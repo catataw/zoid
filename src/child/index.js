@@ -7,9 +7,8 @@ import { markWindowKnown, deserializeMessage } from 'post-robot/src';
 import { ZalgoPromise } from 'zalgo-promise/src';
 import { extend, getElement, noop, memoized, waitForDocumentBody, onResize } from 'belter/src';
 
-import { parseChildWindowName } from '../window';
-import { globalFor } from '../../lib';
-import { CONTEXT, CLOSE_REASONS, INITIAL_PROPS, WINDOW_REFERENCES } from '../../constants';
+import { parseChildWindowName, globalFor } from '../lib';
+import { CONTEXT, CLOSE_REASONS, INITIAL_PROPS, WINDOW_REFERENCES } from '../constants';
 import type { Component } from '../component';
 import type { BuiltInPropsType } from '../component/props';
 import type { WindowRef, PropRef, ParentExportsType } from '../parent';
@@ -263,7 +262,7 @@ export class ChildComponent<P> {
     error(err : mixed) : ZalgoPromise<void> {
         // eslint-disable-next-line promise/no-promise-in-callback
         return ZalgoPromise.try(() => {
-            if (this.parentExports.error) {
+            if (this.parentExports && this.parentExports.error) {
                 return this.parentExports.error(err);
             }
         }).catch(noop).then(() => {

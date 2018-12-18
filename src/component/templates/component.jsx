@@ -5,7 +5,7 @@ import { node, dom } from 'jsx-pragmatic/src';
 
 import { type RenderOptionsType } from '../../parent';
 
-export function defaultPrerenderTemplate<P>({ document } : RenderOptionsType<P>) : HTMLElement {
+export function defaultPrerenderTemplate<P>({ doc } : RenderOptionsType<P>) : HTMLElement {
     return (
         <html>
             <head>
@@ -61,5 +61,5 @@ export function defaultPrerenderTemplate<P>({ document } : RenderOptionsType<P>)
                 </div>
             </body>
         </html>
-    ).render(dom({ doc: document }));
+    ).render(dom({ doc }));
 }

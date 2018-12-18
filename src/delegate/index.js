@@ -8,8 +8,8 @@ import { ProxyWindow } from 'post-robot/src';
 import { ParentComponent } from '../parent';
 import { RENDER_DRIVERS, type ContextDriverType } from '../parent/drivers';
 import type { Component } from '../component';
-import type { CancelableType } from '../../types';
-import { cleanup, type CleanupType } from '../../lib';
+import type { CancelableType } from '../types';
+import { cleanup, type CleanupType } from '../lib';
 
 export type DelegatePropsType = {
     onClose : () => ?ZalgoPromise<void>,
@@ -59,13 +59,11 @@ export class DelegateComponent<P>  {
         this.resize = ParentComponent.prototype.resize;
         // $FlowFixMe
         this.renderTemplate = ParentComponent.prototype.renderTemplate;
-        // $FlowFixMe
-        this.registerActiveComponent = ParentComponent.prototype.registerActiveComponent;
 
         // $FlowFixMe
         this.props = {};
-        for (let propName of this.component.getPropNames()) {
-            if (options.props[propName] && this.component.getProp(propName).allowDelegate) {
+        for (let propName of Object.keys(options.props)) {
+            if (options.props[propName] && this.component.getProp(propName) && this.component.getProp(propName).allowDelegate) {
                 this.props[propName] = options.props[propName];
             }
         }
@@ -73,9 +71,9 @@ export class DelegateComponent<P>  {
         this.userClose = options.overrides.userClose;
         this.error     = options.overrides.error;
         this.on        = options.overrides.on;
-
-        // $FlowFixMe
-        this.registerActiveComponent();
+        
+        this.component.registerActiveComponent(this);
+        this.clean.register(() => this.component.destroyActiveComponent(this));
 
         this.watchForSourceClose(source);
     }
@@ -93,7 +91,7 @@ export class DelegateComponent<P>  {
 
     watchForSourceClose(source : CrossDomainWindowType) {
         let closeSourceWindowListener = onCloseWindow(source, () => this.destroy(), 3000);
-        this.clean.register('destroyCloseSourceWindowListener', closeSourceWindowListener.cancel);
+        this.clean.register(closeSourceWindowListener.cancel);
     }
 
     getOverrides() : { [string] : mixed } {

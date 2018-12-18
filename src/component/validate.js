@@ -1,8 +1,8 @@
 /* @flow */
 
-import { isPerc, isPx } from 'belter/src';
+import { isPerc, isPx, values } from 'belter/src';
 
-import { PROP_TYPES_LIST, CONTEXT_LIST } from '../../constants';
+import { CONTEXT, PROP_TYPES } from '../constants';
 
 import type { ComponentOptionsType } from './index';
 
@@ -11,6 +11,8 @@ function validatePropDefinitions<P>(options : ComponentOptionsType<P>) {
     if (options.props && !(typeof options.props === 'object')) {
         throw new Error(`Expected options.props to be an object`);
     }
+
+    const PROP_TYPES_LIST = values(PROP_TYPES);
 
     if (options.props) {
         for (let key of Object.keys(options.props)) {
@@ -37,7 +39,6 @@ function validatePropDefinitions<P>(options : ComponentOptionsType<P>) {
     }
 }
 
-// eslint-disable-next-line complexity
 export function validate<P>(options : ?ComponentOptionsType<P>) { // eslint-ignore-line
 
     if (!options) {
@@ -60,65 +61,14 @@ export function validate<P>(options : ?ComponentOptionsType<P>) { // eslint-igno
         }
     }
 
-    if (options.contexts) {
-
-        if (options.contexts.popup && !__ZOID__.__POPUP_SUPPORT__) {
-            throw new Error(`Popups not supported in this build -- please use the full zoid.js build`);
-        }
-
-        let anyEnabled = false;
-
-        for (let context of Object.keys(options.contexts)) {
-
-            if (CONTEXT_LIST.indexOf(context) === -1) {
-                throw new Error(`Unsupported context type: ${ context }`);
-            }
-
-            if ((options.contexts && options.contexts[context]) || (options.contexts && options.contexts[context] === undefined)) {
-                anyEnabled = true;
-            }
-        }
-
-        if (!anyEnabled) {
-            throw new Error(`No context type is enabled`);
-        }
-    }
-
     if (options.defaultContext) {
-        if (CONTEXT_LIST.indexOf(options.defaultContext) === -1) {
+        if (options.defaultContext !== CONTEXT.IFRAME && options.defaultContext !== CONTEXT.POPUP) {
             throw new Error(`Unsupported context type: ${ options.defaultContext || 'unknown' }`);
         }
-
-        if (options.contexts && options.defaultContext && !options.contexts[options.defaultContext]) {
-            throw new Error(`Disallowed default context type: ${ options.defaultContext || 'unknown' }`);
-        }
     }
 
-    if (options.defaultEnv) {
-        if (typeof options.defaultEnv !== 'string') {
-            throw new TypeError(`Expected options.defaultEnv to be a string`);
-        }
-
-        if (typeof options.url === 'object' && !options.url[options.defaultEnv]) {
-            throw new Error(`No url found for default env: ${ options.defaultEnv }`);
-        }
-    }
-
-    if (!options.url && !options.buildUrl) {
+    if (!options.url) {
         throw new Error(`Must pass url`);
-    }
-
-    if (typeof options.url === 'object') {
-
-        if (!options.defaultEnv) {
-            throw new Error(`Must pass options.defaultEnv with env->url mapping`);
-        }
-
-        for (let env of Object.keys(options.url)) {
-            if (!options.url[env]) {
-                throw new Error(`No url specified for env: ${ env }`);
-            }
-        }
     }
 
     if (options.prerenderTemplate && typeof options.prerenderTemplate !== 'function') {

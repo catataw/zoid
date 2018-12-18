@@ -3,20 +3,20 @@
 import { assert } from 'chai';
 
 import { testComponent } from '../component';
-import { onWindowOpen } from '../common';
+import { CONTEXT } from '../../src';
 
 describe('zoid happy cases', () => {
 
     it('should enter a component rendered as an iframe', done => {
 
-        testComponent.renderIframe({
-            onEnter: done
+        testComponent.render({
+            onRendered: done
         }, document.body);
     });
 
     it('should enter a component rendered as an iframe and call a prop', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
 
             foo(bar) {
                 assert.equal(bar, 'bar');
@@ -31,14 +31,14 @@ describe('zoid happy cases', () => {
 
     it('should enter a component rendered as an iframe', done => {
 
-        testComponent.renderIframe({
-            onEnter: done
+        testComponent.render({
+            onRendered: done
         }, document.body);
     });
 
     it('should enter a component rendered as an iframe and call a prop', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
 
             foo(bar) {
                 assert.equal(bar, 'bar');
@@ -53,14 +53,14 @@ describe('zoid happy cases', () => {
 
     it('should enter a component rendered as a popup', done => {
 
-        testComponent.renderPopup({
-            onEnter: done
-        });
+        testComponent.render({
+            onRendered: done
+        }, 'body', CONTEXT.POPUP);
     });
 
     it('should enter a component rendered as a popup and call a prop', done => {
 
-        testComponent.renderPopup({
+        testComponent.render({
 
             foo(bar) {
                 assert.equal(bar, 'bar');
@@ -70,14 +70,14 @@ describe('zoid happy cases', () => {
             run: `
                 window.xprops.foo('bar');
             `
-        });
+        }, 'body', CONTEXT.POPUP);
     });
 
     it('should enter a component, update a prop, and call a prop', done => {
 
         let isDone = false;
 
-        testComponent.renderIframe({
+        testComponent.render({
 
             foo() {
                 this.updateProps({
@@ -104,7 +104,7 @@ describe('zoid happy cases', () => {
     it('should try to render by passing in an element', done => {
 
         testComponent.render({
-            onEnter: done
+            onRendered: done
         }, document.body);
     });
 
@@ -114,7 +114,7 @@ describe('zoid happy cases', () => {
         testComponent.defaultContext = 'iframe';
 
         testComponent.render({
-            onEnter() {
+            onRendered() {
                 testComponent.defaultContext = originalDefaultContext;
                 done();
             }
@@ -127,7 +127,7 @@ describe('zoid happy cases', () => {
         testComponent.defaultContext = 'iframe';
 
         testComponent.renderTo(window, {
-            onEnter() {
+            onRendered() {
                 testComponent.defaultContext = originalDefaultContext;
                 done();
             }
@@ -140,83 +140,16 @@ describe('zoid happy cases', () => {
         testComponent.defaultContext = 'popup';
 
         testComponent.render({
-            onEnter() {
+            onRendered() {
                 testComponent.defaultContext = originalDefaultContext;
                 done();
             }
         });
-    });
-
-    it('should try to render to when popup is the only available option', done => {
-
-        let originalDefaultContext = testComponent.defaultContext;
-        let originalContexts = testComponent.contexts;
-
-        delete testComponent.defaultContext;
-        testComponent.contexts = {
-            popup:  true,
-            iframe: false
-        };
-
-        testComponent.render({
-            onEnter() {
-                testComponent.defaultContext = originalDefaultContext;
-                testComponent.contexts = originalContexts;
-                done();
-            }
-        });
-    });
-
-    it('should try to render to when iframe is the only available option', done => {
-
-        let originalDefaultContext = testComponent.defaultContext;
-        let originalContexts = testComponent.contexts;
-
-        delete testComponent.defaultContext;
-        testComponent.contexts = {
-            popup:  false,
-            iframe: true
-        };
-
-        testComponent.render({
-            onEnter() {
-                testComponent.defaultContext = originalDefaultContext;
-                testComponent.contexts = originalContexts;
-                done();
-            }
-        }, document.body);
-    });
-
-    it('should try to render to iframe, when both iframe and popup are supported contexts', () => {
-        
-        let originalDefaultContext = testComponent.defaultContext;
-        let originalContexts = testComponent.contexts;
-
-        delete testComponent.defaultContext;
-        testComponent.contexts = {
-            popup:  true,
-            iframe: true
-        };
-
-        let promise = onWindowOpen().then(openedWindow => {
-            if (openedWindow.parent === openedWindow) {
-                throw new Error(`Expected opened window to be iframe`);
-            }
-        });
-
-        testComponent.render({
-            onEnter() {
-                testComponent.defaultContext = originalDefaultContext;
-                testComponent.contexts = originalContexts;
-            }
-        }, document.body);
-
-        return promise;
     });
 
     it('should enter a component and call back with a string prop', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
 
             stringProp: 'bar',
 
@@ -233,7 +166,7 @@ describe('zoid happy cases', () => {
 
     it('should enter a component and call back with a number prop', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
 
             numberProp: 123,
 
@@ -250,7 +183,7 @@ describe('zoid happy cases', () => {
 
     it('should enter a component and call back with a boolean prop', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
 
             booleanProp: true,
 
@@ -267,7 +200,7 @@ describe('zoid happy cases', () => {
 
     it('should enter a component and call back with an object prop', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
 
             objectProp: { foo: 'bar', x: 12345, fn() { done(); }, obj: { bar: 'baz' } },
 
@@ -287,7 +220,7 @@ describe('zoid happy cases', () => {
 
     it('should enter a component and call back with a function prop', done => {
 
-        testComponent.renderIframe({
+        testComponent.render({
 
             functionProp: done,
 

@@ -4,24 +4,25 @@
 import { node, dom } from 'jsx-pragmatic/src';
 
 import { type RenderOptionsType } from '../../parent';
+import { CLASS } from '../../constants';
 
-export function defaultContainerTemplate<P>({ id, tag, context, CLASS, outlet, document, dimensions : { width, height } } : RenderOptionsType<P>) : HTMLElement {
+export function defaultContainerTemplate<P>({ uid, outlet, doc, dimensions : { width, height } } : RenderOptionsType<P>) : HTMLElement {
 
     return (
-        <div id={ id } class={ `${ CLASS.ZOID } ${ CLASS.ZOID }-tag-${ tag } ${ CLASS.ZOID }-context-${ context }` }>
+        <div id={ uid }>
             <style>
                 {`
-                    #${ id }, #${ id } > .${ CLASS.OUTLET } {
+                    #${ uid }, #${ uid } > .${ CLASS.OUTLET } {
                         width: ${ width };
                         height: ${ height };
                     }
 
-                    #${ id } > .${ CLASS.OUTLET } {
+                    #${ uid } > .${ CLASS.OUTLET } {
                         display: inline-block;
                         position: relative;
                     }
 
-                    #${ id } > .${ CLASS.OUTLET } > iframe {
+                    #${ uid } > .${ CLASS.OUTLET } > iframe {
                         height: 100%;
                         width: 100%;
                         position: absolute;
@@ -30,11 +31,11 @@ export function defaultContainerTemplate<P>({ id, tag, context, CLASS, outlet, d
                         transition: opacity .2s ease-in-out;
                     }
 
-                    #${ id } > .${ CLASS.OUTLET } > iframe.${ CLASS.VISIBLE } {
+                    #${ uid } > .${ CLASS.OUTLET } > iframe.${ CLASS.VISIBLE } {
                         opacity: 1;
                     }
 
-                    #${ id } > .${ CLASS.OUTLET } > iframe.${ CLASS.INVISIBLE } {
+                    #${ uid } > .${ CLASS.OUTLET } > iframe.${ CLASS.INVISIBLE } {
                         opacity: 0;
                     }
                 `}
@@ -42,5 +43,5 @@ export function defaultContainerTemplate<P>({ id, tag, context, CLASS, outlet, d
 
             <node el={ outlet } />
         </div>
-    ).render(dom({ doc: document }));
+    ).render(dom({ doc }));
 }

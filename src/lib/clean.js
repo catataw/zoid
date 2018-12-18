@@ -1,14 +1,12 @@
 /* @flow */
 
 import { ZalgoPromise } from 'zalgo-promise/src';
-import { noop } from 'belter/src';
 
 export type CleanupType = {
     set : <T : mixed>(string, T) => T, // eslint-disable-line no-undef
-    register : (string | Function, ?Function) => void,
+    register : (Function) => void,
     hasTasks : () => boolean,
-    all : () => ZalgoPromise<void>,
-    run : (string) => ZalgoPromise<void>
+    all : () => ZalgoPromise<void>
 };
 
 export function cleanup(obj : Object) : CleanupType {
@@ -31,16 +29,7 @@ export function cleanup(obj : Object) : CleanupType {
             return item;
         },
 
-        register(name : string | Function, method : ?Function) {
-
-            if (typeof name === 'function') {
-                method = name;
-                name = '<anonymous-cleanup-handler>';
-            }
-
-            if (typeof method !== 'function') {
-                throw new TypeError(`Expected to be passed function to clean.register`);
-            }
+        register(method : Function) {
 
             if (cleaned) {
                 method();
@@ -49,8 +38,6 @@ export function cleanup(obj : Object) : CleanupType {
 
             tasks.push({
                 complete: false,
-
-                name,
 
                 run() {
 
@@ -81,18 +68,6 @@ export function cleanup(obj : Object) : CleanupType {
             }
 
             return ZalgoPromise.all(results).then(() => { /* pass */ });
-        },
-
-        run(name : string) : ZalgoPromise<void> {
-            let results = [];
-
-            for (let item of tasks) {
-                if (item.name === name) {
-                    results.push(item.run());
-                }
-            }
-
-            return ZalgoPromise.all(results).then(noop);
         }
     };
 }

@@ -5,7 +5,7 @@ import { dotify, isDefined } from 'belter/src';
 
 import type { Component } from '../component';
 import type { BuiltInPropsDefinitionType, PropsType, BuiltInPropsType, MixedPropDefinitionType } from '../component/props';
-import { PROP_SERIALIZATION } from '../../constants';
+import { PROP_SERIALIZATION } from '../constants';
 
 import type { ParentComponent } from './index';
 
@@ -15,12 +15,13 @@ import type { ParentComponent } from './index';
     Turn props into normalized values, using defaults, function options, etc.
 */
 
-export function normalizeProps<P>(component : Component<P>, instance : ParentComponent<P>, props : (PropsType & P), isUpdate : boolean = false) : (BuiltInPropsType & P) { // eslint-disable-line complexity
+export function normalizeProps<P>(component : Component<P>, instance : ParentComponent<P>, props : (PropsType & P), state : Object) : (BuiltInPropsType & P) { // eslint-disable-line complexity
 
-    let result = {};
+    // $FlowFixMe
     props = props || {};
+    let result = { ...props };
 
-    let propNames = isUpdate ? [] : component.getPropNames();
+    let propNames = component.getPropNames();
 
     // $FlowFixMe
     for (let key of Object.keys(props)) {
@@ -36,7 +37,6 @@ export function normalizeProps<P>(component : Component<P>, instance : ParentCom
         let value = props[key];
 
         if (!propDef) {
-            result[key] = value;
             continue;
         }
 
@@ -49,19 +49,17 @@ export function normalizeProps<P>(component : Component<P>, instance : ParentCom
         }
 
         if (propDef.value) {
-            value = propDef.value();
+            value = propDef.value({ props: result, state });
         }
 
         if (!isDefined(value) && propDef.def) {
-            value = propDef.def(props, component);
+            value = propDef.def({ props: result, state });
         }
 
         if (isDefined(value)) {
             if (propDef.type === 'array' ? !Array.isArray(value) : (typeof value !== propDef.type)) {
                 throw new TypeError(`Prop is not of type ${ propDef.type }: ${ key }`);
             }
-        } else if (propDef.required !== false) {
-            throw new Error(`Expected prop ${ key } to be passed`);
         }
 
         result[key] = value;
@@ -84,9 +82,9 @@ export function normalizeProps<P>(component : Component<P>, instance : ParentCom
             propDef.validate(value, result);
         }
 
-        if (propDef.decorate) {
+        if (isDefined(value) && propDef.decorate) {
             // $FlowFixMe
-            result[key] = propDef.decorate(value, result);
+            result[key] = propDef.decorate({ value, props: result, state });
         }
 
         if (result[key] && propDef.type === 'function') {
@@ -114,7 +112,7 @@ export function normalizeProps<P>(component : Component<P>, instance : ParentCom
 function getQueryParam<T, P>(prop : MixedPropDefinitionType<P>, key : string, value : T) : ZalgoPromise<string> {
     return ZalgoPromise.try(() => {
         if (typeof prop.queryParam === 'function') {
-            return prop.queryParam(value);
+            return prop.queryParam({ value });
         } else if (typeof prop.queryParam === 'string') {
             return prop.queryParam;
         } else {
@@ -126,8 +124,8 @@ function getQueryParam<T, P>(prop : MixedPropDefinitionType<P>, key : string, va
 // $FlowFixMe
 function getQueryValue<T, P>(prop : MixedPropDefinitionType<P>, key : string, value : T) : ZalgoPromise<mixed> {
     return ZalgoPromise.try(() => {
-        if (typeof prop.queryValue === 'function') {
-            return prop.queryValue(value);
+        if (typeof prop.queryValue === 'function' && isDefined(value)) {
+            return prop.queryValue({ value });
         } else {
             return value;
         }

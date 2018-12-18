@@ -7,7 +7,7 @@ import { testComponent } from '../component';
 
 describe('vue drivers', () => {
 
-    it('should enter a component rendered with vue and call onEnter', done => {
+    it('should enter a component rendered with vue and call onRendered', done => {
 
         if (!document.body) {
             return done(new Error('Can not find document.body'));
@@ -25,13 +25,13 @@ describe('vue drivers', () => {
             render(createElement) : Element {
                 return createElement(vueComponent, {
                     attrs: {
-                        onEnter: this.onEnter
+                        onRendered: this.onRendered
                     }
                 });
             },
             computed: {
-                onEnter: () => {
-                    return function onEnter() : ZalgoPromise<void> {
+                onRendered: () => {
+                    return function onRendered() : ZalgoPromise<void> {
                         return this.close().then(done);
                     };
                 }

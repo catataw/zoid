@@ -5,9 +5,10 @@ import { type ZalgoPromise } from 'zalgo-promise/src';
 import * as _postRobot from 'post-robot/src';
 
 import { Component, type ComponentOptionsType } from './component';
-import { ParentComponent } from './component/parent';
 // eslint-disable-next-line import/no-namespace
 import * as _CONSTANTS from './constants';
+
+export * from './constants';
 
 export { PopupOpenError } from 'belter/src';
 
@@ -22,7 +23,7 @@ export function getByTag<P>(tag : string) : Component<P> {
 export { getCurrentScriptDir, useLogger } from './lib';
 
 export function destroyAll() : ZalgoPromise<void> {
-    return ParentComponent.destroyAll();
+    return Component.destroyAll();
 }
 export let postRobot = _postRobot;
 

@@ -9,7 +9,7 @@ window.angular.bootstrap(document.body, [ 'app' ]);
 
 describe('zoid drivers', () => {
 
-    it('should enter a component rendered with react and call onEnter', done => {
+    it('should enter a component rendered with react and call onRendered', done => {
 
         let Main = class extends window.React.Component {
 
@@ -20,7 +20,7 @@ describe('zoid drivers', () => {
                     null,
                     // $FlowFixMe
                     window.React.createElement(testComponent.react, {
-                        onEnter() {
+                        onRendered() {
                             this.close().then(done);
                         }
                     })
@@ -75,7 +75,7 @@ describe('zoid drivers', () => {
         window.ReactDOM.render(window.React.createElement(Main, null), container);
     });
 
-    it('should enter a component rendered with angular and call onEnter', done => {
+    it('should enter a component rendered with angular and call onRendered', done => {
 
         let injector = window.angular.element(document.body).injector();
         let $compile = injector.get('$compile');
@@ -83,12 +83,12 @@ describe('zoid drivers', () => {
 
         let $scope = $rootScope.$new();
 
-        $scope.onEnter = function onEnter() {
+        $scope.onRendered = function onRendered() {
             this.close().then(done);
         };
 
         $compile(`
-            <test-component on-enter="onEnter"></test-component>
+            <test-component on-rendered="onRendered"></test-component>
         `)($scope, element => {
             if (!document.body) {
                 throw new Error(`Expected document.body to be present`);

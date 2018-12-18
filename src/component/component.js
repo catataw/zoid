@@ -3,24 +3,24 @@
 
 import { on, send } from 'post-robot/src';
 import { ZalgoPromise } from 'zalgo-promise/src';
-import { getDomainFromUrl, type CrossDomainWindowType } from 'cross-domain-utils/src';
-import { memoize, isRegex, toCSS } from 'belter/src';
-import { type ElementNode } from 'jsx-pragmatic/src';
+import { getDomainFromUrl, type CrossDomainWindowType, isSameTopWindow, getDomain, matchDomain, isSameDomain } from 'cross-domain-utils/src';
+import { memoize, isRegex, noop, isElement } from 'belter/src';
 
 import { ChildComponent } from '../child';
 import { ParentComponent, type RenderOptionsType } from '../parent';
 import { DelegateComponent, type DelegateOptionsType } from '../delegate';
-import { isZoidComponentWindow, parseChildWindowName } from '../window';
-import { CONTEXT, POST_MESSAGE, WILDCARD, DEFAULT_DIMENSIONS } from '../../constants';
-import { angular, angular2, glimmer, react, vue } from '../../drivers/index';
-import { info, error, warn } from '../../lib';
-import type { CssDimensionsType, StringMatcherType, ElementRefType, EnvString } from '../../types';
+import { CONTEXT, POST_MESSAGE, WILDCARD, DEFAULT_DIMENSIONS } from '../constants';
+import { info, error, warn, isZoidComponentWindow, parseChildWindowName } from '../lib';
+import type { CssDimensionsType, StringMatcherType, ElementRefType } from '../types';
 
 import { validate } from './validate';
 import { defaultContainerTemplate, defaultPrerenderTemplate } from './templates';
 import { getInternalProps, type UserPropsDefinitionType, type BuiltInPropsDefinitionType, type PropsType, type BuiltInPropsType, type MixedPropDefinitionType } from './props';
 
-const drivers = { angular, angular2, glimmer, react, vue };
+
+const drivers = __ZOID__.__FRAMEWORK_SUPPORT__
+    ? require('../drivers')
+    : {};
 
 /*  Component
     ---------
@@ -36,10 +36,9 @@ export type ComponentOptionsType<P> = {
 
     tag : string,
 
-    url : EnvString | (props : BuiltInPropsType & P) => string,
-    buildUrl? : (props : BuiltInPropsType & P) => string,
-    domain? : EnvString | RegExp,
-    bridgeUrl? : EnvString,
+    url : string | ({ props : BuiltInPropsType & P }) => string,
+    domain? : string | RegExp,
+    bridgeUrl? : string,
 
     props? : UserPropsDefinitionType<P>,
 
@@ -48,20 +47,17 @@ export type ComponentOptionsType<P> = {
 
     allowedParentDomains? : StringMatcherType,
 
-    defaultEnv? : string,
-
     attributes? : {
         iframe? : { [string] : string },
         popup? : { [string] : string }
     },
 
-    contexts? : { iframe? : boolean, popup? : boolean },
-    defaultContext? : string,
+    defaultContext? : $Values<typeof CONTEXT>,
 
-    containerTemplate? : (RenderOptionsType<P>) => HTMLElement | ElementNode,
-    prerenderTemplate? : (RenderOptionsType<P>) => HTMLElement | ElementNode,
+    containerTemplate? : (RenderOptionsType<P>) => HTMLElement,
+    prerenderTemplate? : (RenderOptionsType<P>) => HTMLElement,
 
-    validate? : (Component<P>, (PropsType & P)) => void
+    validate? : ({ props : (PropsType & P) }) => void
 };
 
 export type ComponentDriverType<P, T : mixed> = {
@@ -74,9 +70,9 @@ export class Component<P> {
     tag : string
     name : string
     
-    url : void | EnvString | (props : BuiltInPropsType & P) => string
-    domain : void | EnvString | RegExp
-    bridgeUrl : void | EnvString
+    url : string | ({ props : BuiltInPropsType & P }) => string
+    domain : void | string | RegExp
+    bridgeUrl : void | string
 
     props : UserPropsDefinitionType<P>
     builtinProps : BuiltInPropsDefinitionType<P>
@@ -86,20 +82,17 @@ export class Component<P> {
 
     allowedParentDomains : StringMatcherType
 
-    defaultEnv : void | string
-
-    contexts : { iframe? : boolean, popup? : boolean }
-    defaultContext : string
+    defaultContext : $Values<typeof CONTEXT>
     
     attributes : {
         iframe? : { [string] : string },
         popup? : { [string] : string }
     }
 
-    containerTemplate : (RenderOptionsType<P>) => HTMLElement | ElementNode
-    prerenderTemplate : (RenderOptionsType<P>) => HTMLElement | ElementNode
+    containerTemplate : (RenderOptionsType<P>) => HTMLElement
+    prerenderTemplate : (RenderOptionsType<P>) => HTMLElement
 
-    validate : void | (Component<P>, (PropsType & P)) => void
+    validate : void | ({ props : (PropsType & P) }) => void
 
     driverCache : { [string] : mixed }
 
@@ -130,20 +123,16 @@ export class Component<P> {
         // The dimensions of the component, e.g. { width: '300px', height: '150px' }
 
         let { width = DEFAULT_DIMENSIONS.WIDTH, height = DEFAULT_DIMENSIONS.HEIGHT } = options.dimensions || {};
-        this.dimensions = { width: toCSS(width), height: toCSS(height) };
+        this.dimensions = { width, height };
 
-        this.defaultEnv = options.defaultEnv;
-        this.url = options.url || options.buildUrl;
+        this.url = options.url;
         this.domain = options.domain;
         this.bridgeUrl = options.bridgeUrl;
 
         this.attributes = options.attributes || {};
-        this.contexts = options.contexts || { iframe: true, popup: false };
         this.defaultContext = options.defaultContext || CONTEXT.IFRAME;
 
-        this.autoResize = (typeof options.autoResize === 'object')
-            ? options.autoResize
-            : { width: Boolean(options.autoResize), height: Boolean(options.autoResize), element: 'body' };
+        this.autoResize = options.autoResize;
 
         this.containerTemplate = options.containerTemplate || defaultContainerTemplate;
         this.prerenderTemplate = options.prerenderTemplate || defaultPrerenderTemplate;
@@ -235,31 +224,17 @@ export class Component<P> {
 
     getUrl(props : BuiltInPropsType & P) : string {
         if (typeof this.url === 'function') {
-            return this.url(props);
-        }
-
-        if (typeof this.url === 'string') {
+            return this.url({ props });
+        } else if (typeof this.url === 'string') {
             return this.url;
-        }
-
-        let env = props.env || this.defaultEnv;
-        if (env && typeof this.url === 'object' && this.url[env]) {
-            return this.url[env];
         }
 
         throw new Error(`Can not find url`);
     }
 
     getInitialDomain(props : BuiltInPropsType & P) : string {
-        if (typeof this.domain === 'string') {
-            // $FlowFixMe
+        if (this.domain && typeof this.domain === 'string') {
             return this.domain;
-        }
-
-        let env = props.env || this.defaultEnv;
-        // $FlowFixMe
-        if (env && typeof this.domain === 'object' && !isRegex(this.domain) && this.domain[env]) {
-            return this.domain[env];
         }
 
         return getDomainFromUrl(this.getUrl(props));
@@ -274,16 +249,9 @@ export class Component<P> {
         return this.getInitialDomain(props);
     }
 
-    getBridgeUrl(props : BuiltInPropsType & P) : ?string {
+    getBridgeUrl() : ?string {
         if (this.bridgeUrl) {
-            if (typeof this.bridgeUrl === 'string') {
-                return this.bridgeUrl;
-            }
-    
-            let env = props.env || this.defaultEnv;
-            if (env && typeof this.bridgeUrl === 'object' && this.bridgeUrl[env]) {
-                return this.bridgeUrl[env];
-            }
+            return this.bridgeUrl;
         }
     }
 
@@ -300,97 +268,76 @@ export class Component<P> {
         return new Error(`[${ tag || this.tag  }] ${ message }`);
     }
 
-
-    /*  Init
-        ----
-
-        Shortcut to instantiate a component on a parent page, with props
-    */
-
-    init(props : (PropsType & P), context : ?string, element : ElementRefType) : ParentComponent<P> {
-        return new ParentComponent(this, this.getRenderContext(context, element), { props });
-    }
-
-
     delegate(source : CrossDomainWindowType, options : DelegateOptionsType) : DelegateComponent<P> {
         return new DelegateComponent(this, source, options);
     }
 
-    validateRenderContext(context : ?string, element : ?ElementRefType) {
-        if (context && !this.contexts[context]) {
-            throw new Error(`[${ this.tag }] Can not render to ${ context }`);
+    getDefaultElement(context : $Values<typeof CONTEXT>, element : ?ElementRefType) : ElementRefType {
+        if (element) {
+            if (!isElement(element) && typeof element !== 'string') {
+                throw new Error(`Expected element to be passed`);
+            }
+
+            return element;
         }
 
-        if (!element && context === CONTEXT.IFRAME) {
-            throw new Error(`[${ this.tag }] Context type ${ CONTEXT.IFRAME } requires an element selector`);
-        }
-    }
-
-    getDefaultContext() : string {
-        if (this.defaultContext && this.contexts[this.defaultContext]) {
-            return this.defaultContext;
-        } else if (this.contexts[CONTEXT.IFRAME]) {
-            return CONTEXT.IFRAME;
-        } else if (this.contexts[CONTEXT.POPUP]) {
-            return CONTEXT.POPUP;
+        if (context === CONTEXT.POPUP) {
+            return 'body';
         }
 
-        throw new Error(`Can not determine default context`);
+        throw new Error(`Expected element to be passed to render iframe`);
     }
 
-    getRenderContext(context : ?string, element : ?ElementRefType) : string {
-        context = context || this.getDefaultContext();
-        this.validateRenderContext(context, element);
-        return context;
+    getDefaultContext(context : ?$Values<typeof CONTEXT>) : $Values<typeof CONTEXT> {
+        if (context) {
+            if (context !== CONTEXT.IFRAME && context !== CONTEXT.POPUP) {
+                throw new Error(`Unrecognized context: ${ context }`);
+            }
+            
+            return context;
+        }
+
+        return this.defaultContext;
     }
 
-
-    /*  Render
-        ------
-
-        Shortcut to render a parent component
-    */
-
-    render(props : (PropsType & P), element : ?ElementRefType) : ZalgoPromise<ParentComponent<P>> {
+    render(props : (PropsType & P), element? : ElementRefType, context? : $Values<typeof CONTEXT>) : ZalgoPromise<ParentComponent<P>> {
         return ZalgoPromise.try(() => {
-            let context = this.getRenderContext(null, element);
-            return new ParentComponent(this, context, { props }).render(context, element);
+            context = this.getDefaultContext(context);
+            element = this.getDefaultElement(context, element);
+            return new ParentComponent(this, context, { props }).render(window, context, element);
         });
     }
 
-    renderIframe(props : (PropsType & P), element : ElementRefType) : ZalgoPromise<ParentComponent<P>> {
+    renderTo(target : CrossDomainWindowType, props : (PropsType & P), element? : ElementRefType, context? : $Values<typeof CONTEXT>) : ZalgoPromise<ParentComponent<P>> {
         return ZalgoPromise.try(() => {
-            let context = this.getRenderContext(CONTEXT.IFRAME, element);
-            return new ParentComponent(this, context, { props }).render(context, element);
+            context = this.getDefaultContext(context);
+            element = this.getDefaultElement(context, element);
+            return new ParentComponent(this, context, { props }).render(target, context, element);
         });
     }
 
-    renderPopup(props : (PropsType & P)) : ZalgoPromise<ParentComponent<P>> {
-        return ZalgoPromise.try(() => {
-            let context = this.getRenderContext(CONTEXT.POPUP);
-            return new ParentComponent(this, context, { props }).render(context);
-        });
-    }
+    checkAllowRemoteRender(target : CrossDomainWindowType, domain : string | RegExp, element : ElementRefType) {
+        if (!target) {
+            throw this.createError(`Must pass window to renderTo`);
+        }
 
-    renderTo(win : CrossDomainWindowType, props : (PropsType & P), element : ?ElementRefType) : ZalgoPromise<ParentComponent<P>> {
-        return ZalgoPromise.try(() => {
-            let context = this.getRenderContext(null, element);
-            return new ParentComponent(this, context, { props }).renderTo(context, win, element);
-        });
-    }
+        if (target === window) {
+            return;
+        }
 
-    renderIframeTo(win : CrossDomainWindowType, props : (PropsType & P), element : ElementRefType) : ZalgoPromise<ParentComponent<P>> {
-        return ZalgoPromise.try(() => {
-            let context = this.getRenderContext(CONTEXT.IFRAME, element);
-            return new ParentComponent(this, context, { props }).renderTo(context, win, element);
-        });
-    }
+        if (!isSameTopWindow(window, target)) {
+            throw new Error(`Can only renderTo an adjacent frame`);
+        }
 
-    renderPopupTo(win : CrossDomainWindowType, props : (PropsType & P)) : ZalgoPromise<ParentComponent<P>> {
-        return ZalgoPromise.try(() => {
-            let context = this.getRenderContext(CONTEXT.POPUP);
-            return new ParentComponent(this, context, { props }).renderTo(context, win);
-        });
+        let origin = getDomain();
+
+        if (!matchDomain(domain, origin) && !isSameDomain(target)) {
+            throw new Error(`Can not render remotely to ${ domain.toString() } - can only render to ${ origin }`);
+        }
+
+        if (element && typeof element !== 'string') {
+            throw new Error(`Element passed to renderTo must be a string selector, got ${ typeof element } ${ element }`);
+        }
     }
 
     /*  Log
@@ -429,5 +376,25 @@ export class Component<P> {
 
     static getByTag<T>(tag : string) : Component<T> {
         return Component.components[tag];
+    }
+
+    static activeComponents : Array<ParentComponent<*> | DelegateComponent<*>> = []
+
+    registerActiveComponent<Q>(instance : ParentComponent<Q> | DelegateComponent<Q>) {
+        Component.activeComponents.push(instance);
+    }
+
+    destroyActiveComponent<Q>(instance : ParentComponent<Q> | DelegateComponent<Q>) {
+        Component.activeComponents.splice(Component.activeComponents.indexOf(instance), 1);
+    }
+
+    static destroyAll() : ZalgoPromise<void> {
+        let results = [];
+
+        while (Component.activeComponents.length) {
+            results.push(Component.activeComponents[0].destroy());
+        }
+
+        return ZalgoPromise.all(results).then(noop);
     }
 }
